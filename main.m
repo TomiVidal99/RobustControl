@@ -17,13 +17,13 @@ pkg load signal;
 
 s = tf("s");
 
-freqs = {0.01, 1e7};
+freqs = {1e-5, 1e9};
 
 % Modelo con todos los parámetros
-Rpi=[1250, 250e3];
-Cpi=[20e-12, 120e-12];
+Rpi=[1e3, 300e3];
+Cpi=[80e-12, 150e-12];
 Cmu=Cpi;
-Rl=[1, 100e3];
+Rl=[1e3, 10e3]; % TODO: cambiar la carga varía mucho la estabilidad
 hFE=1000;
 Rs=1;
 
@@ -34,7 +34,8 @@ f0=10;
 w0=2*pi*f0;
 Kp=1e3*w0*w0;
 chi=0.2;
-Pn=Kp/(s*s-2*chi*s+w0*w0);
+Tzpn=1/1e8;
+Pn=Kp*(Tzpn*s+1)/(s*s-2*chi*s+w0*w0)
 [mg_nom, ph_nom, w_nom] = bode(Pn, freqs);
 
 % figure();
@@ -72,8 +73,8 @@ for Rpi_i = Rpi
         simulated_plants{plant_index}.Rpi = Rpi_i;
         simulated_plants{plant_index}.Cmu = Cmu_i;
         simulated_plants{plant_index}.Cpi = Cpi_i;
-        simulated_plants{plant_index}.uncert_mg = (mg./mg_nom)-1;
-        simulated_plants{plant_index}.uncert_ph = (ph_nom./ph)-1; % TODO: esto como es fase no cambia????
+        simulated_plants{plant_index}.uncert_mg = abs((mg./mg_nom)-1);
+        simulated_plants{plant_index}.uncert_ph = abs((ph./ph_nom)-1); % TODO: esto como es fase no cambia????
 
         plant_index = plant_index + 1;
         
@@ -114,7 +115,7 @@ Pn=Kp/(s*s-2*chi*s+w0*w0);
 loglog(w/(2*pi), mg, 'k--;Planta máxima;', "Linewidth", 3);
 
 % Planta nominal menos mínimo
-f0=0.5e-1;
+f0=1e-2;
 w0=2*pi*f0;
 Kp=1e3*w0*w0;
 chi=1e-5;
@@ -127,24 +128,67 @@ figure();
 grid on;
 hold on;
 
+max_mag_plants=0;
 for i = 1:(plant_index-1)
-  loglog(simulated_plants{i}.w/(2*pi), simulated_plants{i}.uncert_mg, "Linewidth", 2);
+  leg = sprintf(";(Rl=%d, Rpi=%d, Cpi=%d, Cmu=%d);", simulated_plants{i}.Rl, simulated_plants{i}.Rpi, simulated_plants{i}.Cpi/1e-12, simulated_plants{i}.Cmu/1e-12);
+  loglog(simulated_plants{i}.w/(2*pi), simulated_plants{i}.uncert_mg, leg, "Linewidth", 2);
+  m = max(simulated_plants{i}.uncert_mg);
+  if (m > max_mag_plants)
+    max_mag_plants = m;
+  end
 end
 
 
-legend("show");
+legend("location", "northwest");
 xlabel("Frecuencia [Hz]");
 ylabel("Magnitud [dB]");
 title("Incertidumbre de la familia");
+ylim auto;
+ylim_bef = ylim;
+ylim_lower = ylim_bef(1);
+ylim([ylim_lower, max_mag_plants]);
 
 % Modelo de incertidumbre
-Tzero=1/0.5e-1;
-Tpolo=1/1e3;
-K = 1e2; 
-W_model = K*(Tzero*s+1)/(Tpolo*s+1);
+Tzero=1/1e-2;
+K = 1.5e-3; 
+W_model = K*(Tzero*s+1)^3;
 [mg,ph,w] = bode(W_model, w_nom);
 loglog(w/(2*pi), mg, 'k--;Modelo de incertidumbre;', "Linewidth", 3);
 
+% Controlador
+Tpk=-12;
+Tpk2=-800;
+Pn_poles=pole(Pn);
+s1=Pn_poles(1);
+s2=Pn_poles(2);
+%Ks = ((s-Pn_poles(1))*(s-Pn_poles(2)))/(s*(Tpk*s+1)*(Tpk2*s+1));
+Ks = zpk([s1 s2], [-1e-5 -1 -10 -100], 1)
+%Pn=Kp/(s*s-2*chi*s+w0*w0);
+
+% Verifico estabilidad robusta
+figure(); hold on; grid on; title("Verificación estabilidad robusta");
+% T_s = Pn*Ks/(1+Pn*Ks);
+T_s = feedback(Pn*Ks, 1);
+
+% [p,z] = pzmap(T_s)
+% if (any(real(p)) > 0)
+%   dispc("ERROR: la transferencia T(s) es inestable!!!\n", "red");
+%   input("Enter para finalizar... \n\n");
+%   exit;
+% end
+
+[mg,ph,w] = bode(T_s*W_model, w_nom);
+loglog(w/(2*pi), mg, "Linewidth", 3);
+semilogx(w/(2*pi), ones(length(w)), '--k', "Linewidth", 3);
+
+if (max(mg) >= 1)
+  dispc('ERROR: el controlador NO es robusto!!! \n', 'red');
+end
+
+
+% Gráfico del sistema controlado
+figure(); hold on; grid on; title("Respuesta al escalón del sistema controlado");
+step(T_s);
 
 % Handle exit
 ans = input("Presiona ENTER para finalizar... \n\n");
