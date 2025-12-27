@@ -1,3 +1,12 @@
+% Planta nominal
+f0=10;
+w0=2*pi*f0;
+Kp=1e3*w0*w0;
+chi=0.01;
+% Tzpn=1/1e3;
+Pn=Kp/(s*s+2*w0*chi*s+w0*w0)
+[mg_nom, ph_nom, w_nom] = bode(Pn, freqs);
+
 plant_index = 1;
 for Rpi_i = Rpi
   for Cpi_i = Cpi
@@ -66,8 +75,8 @@ f0=1e3;
 w0=2*pi*f0;
 Kp=1e3*w0*w0;
 chi=0.2;
-Pn=Kp/(s*s-2*chi*s+w0*w0);
-[mg,ph,w] = bode(Pn, freqs);
+Pn_max=Kp/(s*s-2*chi*s+w0*w0);
+[mg,ph,w] = bode(Pn_max, freqs);
 loglog(w/(2*pi), mg, 'k--;Planta máxima;', "Linewidth", 3);
 
 % Planta nominal menos mínimo
@@ -75,7 +84,7 @@ f0=1e-2;
 w0=2*pi*f0;
 Kp=1e3*w0*w0;
 chi=1e-5;
-Pn=Kp/(s*s-2*chi*s+w0*w0);
-[mg,ph,w] = bode(Pn, freqs);
+Pn_min=Kp/(s*s-2*chi*s+w0*w0);
+[mg,ph,w] = bode(Pn_min, freqs);
 loglog(w/(2*pi), mg, 'g--;Planta mínima;', "Linewidth", 3);
 

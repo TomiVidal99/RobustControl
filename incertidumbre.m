@@ -25,7 +25,7 @@ ylim([ylim_lower, max_mag_plants]);
 
 % Modelo de incertidumbre
 Tzero=1/1e-2;
-K = 1.5e-3; 
-W_model = K*(Tzero*s+1)^3;
+K = 1.1e-3; 
+W_model = K*(Tzero*s+1)^2;
 [mg,ph,w] = bode(W_model, w_nom);
 loglog(w/(2*pi), mg, 'k--;Modelo de incertidumbre;', "Linewidth", 3);

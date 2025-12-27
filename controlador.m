@@ -2,10 +2,17 @@
 Tpk=-12;
 Tpk2=-800;
 Pn_poles=pole(Pn);
-s1=Pn_poles(1);
-s2=Pn_poles(2);
-Ks = (1.5)*zpk([s1 s2], [-1e-10 -1e-4 -1e4 -10], 1)
-%Pn=Kp/(s*s-2*chi*s+w0*w0);
+z1=Pn_poles(1);
+z2=Pn_poles(2);
+Ks = zpk([z1 z2], [0, -0.001, -4500, -4500, -4500], 2e1)
+pole(Ks)
+
+% f0=10;
+% w0=2*pi*f0;
+% Kp=1e3*w0*w0;
+% chi=0.2;
+% Tzpn=1/1e8;
+% Pn=Kp*(Tzpn*s+1)/(s*s-2*chi*s+w0*w0)
 
 % Verifico estabilidad robusta
 figure(); hold on; grid on; title("Verificación estabilidad robusta");
@@ -22,5 +29,8 @@ end
 
 
 % Gráfico del sistema controlado
-figure(); hold on; grid on; title("Respuesta al escalón del sistema controlado");
-step(T_s);
+% figure(); hold on; grid on; title("Respuesta al escalón del sistema controlado");
+% step(T_s);
+
+figure(); grid on;
+rlocus(T_s);
